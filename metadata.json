@@ -1,0 +1,6 @@
+{
+  "name": "Marque Multi-Tenant Commerce",
+  "description": "Multi-tenant e-commerce platform with selectable storefront templates (Alpine Flagship, Atelier Editorial, Kinetik Minimal), a Merchant Studio customizer, and cloud persistence.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}

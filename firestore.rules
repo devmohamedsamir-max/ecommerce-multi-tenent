@@ -1,0 +1,295 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net — default deny everything
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // =========================================================================
+    // Reusable Hardened Global Primitives
+    // =========================================================================
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidSlug(slug) {
+      return slug is string && slug.size() >= 3 && slug.size() <= 48 && slug.matches('^[a-z0-9]+(?:-[a-z0-9]+)*$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function getStore(storeId) {
+      return get(/databases/$(database)/documents/stores/$(storeId));
+    }
+
+    function storeExists(storeId) {
+      return exists(/databases/$(database)/documents/stores/$(storeId));
+    }
+
+    function isStoreOwner(storeId) {
+      return isVerifiedUser() && storeExists(storeId) && getStore(storeId).data.ownerId == request.auth.uid;
+    }
+
+    // =========================================================================
+    // Validation Blueprints (Synchronized verbatim with firebase-blueprint.json)
+    // =========================================================================
+    function isValidStoreTheme(t) {
+      return t is map
+        && t.keys().hasAll(['mode', 'accentColor', 'surfacePreset', 'fontPairing'])
+        && t.keys().hasOnly(['mode', 'accentColor', 'surfacePreset', 'fontPairing'])
+        && t.mode in ['light', 'dark']
+        && t.accentColor is string && t.accentColor.size() == 7 && t.accentColor.matches('^#[0-9a-fA-F]{6}$')
+        && t.surfacePreset in ['mineral', 'paper', 'chalk', 'obsidian']
+        && t.fontPairing in ['modern', 'editorial', 'technical'];
+    }
+
+    function isValidStoreHero(h) {
+      return h is map
+        && h.keys().hasAll(['headline', 'subheadline', 'ctaLabel', 'imageUrl'])
+        && h.keys().hasOnly(['headline', 'subheadline', 'ctaLabel', 'imageUrl'])
+        && h.headline is string && h.headline.size() >= 1 && h.headline.size() <= 120
+        && h.subheadline is string && h.subheadline.size() <= 320
+        && h.ctaLabel is string && h.ctaLabel.size() >= 1 && h.ctaLabel.size() <= 40
+        && h.imageUrl is string && h.imageUrl.size() <= 500;
+    }
+
+    function isValidStoreStory(s) {
+      return s is map
+        && s.keys().hasAll(['title', 'body', 'metricOneValue', 'metricOneLabel', 'metricTwoValue', 'metricTwoLabel'])
+        && s.keys().hasOnly(['title', 'body', 'metricOneValue', 'metricOneLabel', 'metricTwoValue', 'metricTwoLabel'])
+        && s.title is string && s.title.size() <= 120
+        && s.body is string && s.body.size() <= 500
+        && s.metricOneValue is string && s.metricOneValue.size() <= 24
+        && s.metricOneLabel is string && s.metricOneLabel.size() <= 40
+        && s.metricTwoValue is string && s.metricTwoValue.size() <= 24
+        && s.metricTwoLabel is string && s.metricTwoLabel.size() <= 40;
+    }
+
+    function isValidStore(data, storeId) {
+      return data is map
+        && data.keys().hasAll(['slug', 'ownerId', 'name', 'tagline', 'templateId', 'published', 'theme', 'hero', 'story', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['slug', 'ownerId', 'name', 'tagline', 'templateId', 'published', 'theme', 'hero', 'story', 'createdAt', 'updatedAt'])
+        && isValidSlug(data.slug)
+        && data.slug == storeId
+        && isValidId(data.ownerId)
+        && data.ownerId == request.auth.uid
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 80
+        && data.tagline is string && data.tagline.size() <= 140
+        && data.templateId in ['flagship', 'editorial', 'minimal']
+        && data.published is bool
+        && isValidStoreTheme(data.theme)
+        && isValidStoreHero(data.hero)
+        && isValidStoreStory(data.story)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidProduct(data, storeId) {
+      return data is map
+        && data.keys().hasAll(['storeId', 'ownerId', 'name', 'category', 'description', 'price', 'imageUrl', 'variants', 'finishes', 'inStock', 'featured', 'storePublished', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['storeId', 'ownerId', 'name', 'category', 'description', 'price', 'imageUrl', 'variants', 'finishes', 'inStock', 'featured', 'storePublished', 'createdAt', 'updatedAt'])
+        && isValidSlug(data.storeId)
+        && data.storeId == storeId
+        && isValidId(data.ownerId)
+        && data.ownerId == request.auth.uid
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 100
+        && data.category is string && data.category.size() >= 1 && data.category.size() <= 48
+        && data.description is string && data.description.size() <= 600
+        && data.price is number && data.price >= 0 && data.price <= 100000
+        && data.imageUrl is string && data.imageUrl.size() <= 500
+        && data.variants is list && data.variants.size() >= 1 && data.variants.size() <= 8
+        && data.variants[0] is string && data.variants[0].size() >= 1 && data.variants[0].size() <= 40
+        && data.finishes is list && data.finishes.size() <= 6
+        && (data.finishes.size() == 0 || (data.finishes[0] is string && data.finishes[0].size() >= 1 && data.finishes[0].size() <= 40))
+        && data.inStock is bool
+        && data.featured is bool
+        && data.storePublished is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidOrderItem(item) {
+      return item is map
+        && item.keys().hasAll(['productId', 'name', 'variant', 'qty', 'unitPrice'])
+        && item.keys().hasOnly(['productId', 'name', 'variant', 'qty', 'unitPrice'])
+        && isValidId(item.productId)
+        && item.name is string && item.name.size() >= 1 && item.name.size() <= 100
+        && item.variant is string && item.variant.size() >= 1 && item.variant.size() <= 60
+        && item.qty is int && item.qty >= 1 && item.qty <= 99
+        && item.unitPrice is number && item.unitPrice >= 0 && item.unitPrice <= 100000;
+    }
+
+    function isValidOrder(data, storeId) {
+      return data is map
+        && data.keys().hasAll(['storeId', 'storeOwnerId', 'customerUid', 'customerName', 'customerEmail', 'shippingAddress', 'items', 'totalAmount', 'status', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['storeId', 'storeOwnerId', 'customerUid', 'customerName', 'customerEmail', 'shippingAddress', 'items', 'totalAmount', 'status', 'createdAt', 'updatedAt'])
+        && isValidSlug(data.storeId)
+        && data.storeId == storeId
+        && isValidId(data.storeOwnerId)
+        && isValidId(data.customerUid)
+        && data.customerName is string && data.customerName.size() >= 1 && data.customerName.size() <= 100
+        && data.customerEmail is string && data.customerEmail.size() >= 3 && data.customerEmail.size() <= 160
+        && data.shippingAddress is string && data.shippingAddress.size() >= 5 && data.shippingAddress.size() <= 300
+        && data.items is list && data.items.size() >= 1 && data.items.size() <= 20
+        && isValidOrderItem(data.items[0])
+        && data.totalAmount is number && data.totalAmount > 0 && data.totalAmount <= 500000
+        && data.status in ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled']
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    // =========================================================================
+    // Collection: /stores/{storeId}
+    // =========================================================================
+    match /stores/{storeId} {
+      allow get: if isValidSlug(storeId)
+        && (existing().published == true || (isSignedIn() && existing().ownerId == request.auth.uid));
+
+      allow list: if existing().published == true
+        || (isSignedIn() && existing().ownerId == request.auth.uid);
+
+      allow create: if isVerifiedUser()
+        && isValidSlug(storeId)
+        && isValidStore(incoming(), storeId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isVerifiedUser()
+        && isValidSlug(storeId)
+        && isValidStore(incoming(), storeId)
+        && existing().ownerId == request.auth.uid
+        && incoming().ownerId == existing().ownerId
+        && incoming().slug == existing().slug
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          incoming().diff(existing()).affectedKeys().hasOnly(['name', 'tagline', 'templateId', 'theme', 'updatedAt'])
+          || incoming().diff(existing()).affectedKeys().hasOnly(['hero', 'story', 'updatedAt'])
+          || incoming().diff(existing()).affectedKeys().hasOnly(['published', 'updatedAt'])
+          || incoming().diff(existing()).affectedKeys().hasOnly(['name', 'tagline', 'templateId', 'published', 'theme', 'hero', 'story', 'updatedAt'])
+        );
+
+      allow delete: if isVerifiedUser()
+        && isValidSlug(storeId)
+        && existing().ownerId == request.auth.uid;
+
+      // =======================================================================
+      // Subcollection: /stores/{storeId}/products/{productId}
+      // =======================================================================
+      match /products/{productId} {
+        allow get: if isValidSlug(storeId)
+          && isValidId(productId)
+          && (existing().storePublished == true || (isSignedIn() && existing().ownerId == request.auth.uid));
+
+        allow list: if existing().storePublished == true
+          || (isSignedIn() && existing().ownerId == request.auth.uid);
+
+        allow create: if isVerifiedUser()
+          && isValidSlug(storeId)
+          && isValidId(productId)
+          && isValidProduct(incoming(), storeId)
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && isStoreOwner(storeId);
+
+        allow update: if isVerifiedUser()
+          && isValidSlug(storeId)
+          && isValidId(productId)
+          && isValidProduct(incoming(), storeId)
+          && existing().ownerId == request.auth.uid
+          && incoming().ownerId == existing().ownerId
+          && incoming().storeId == existing().storeId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && (
+            incoming().diff(existing()).affectedKeys().hasOnly(['name', 'category', 'description', 'price', 'imageUrl', 'variants', 'finishes', 'inStock', 'featured', 'updatedAt'])
+            || incoming().diff(existing()).affectedKeys().hasOnly(['storePublished', 'updatedAt'])
+            || incoming().diff(existing()).affectedKeys().hasOnly(['inStock', 'updatedAt'])
+            || incoming().diff(existing()).affectedKeys().hasOnly(['featured', 'updatedAt'])
+          )
+          && isStoreOwner(storeId);
+
+        allow delete: if isVerifiedUser()
+          && isValidSlug(storeId)
+          && isValidId(productId)
+          && existing().ownerId == request.auth.uid
+          && isStoreOwner(storeId);
+      }
+
+      // =======================================================================
+      // Subcollection: /stores/{storeId}/orders/{orderId} (PII Isolated)
+      // =======================================================================
+      match /orders/{orderId} {
+        allow get: if isSignedIn()
+          && isValidSlug(storeId)
+          && isValidId(orderId)
+          && (existing().storeOwnerId == request.auth.uid || existing().customerUid == request.auth.uid);
+
+        allow list: if isSignedIn()
+          && (existing().storeOwnerId == request.auth.uid || existing().customerUid == request.auth.uid);
+
+        allow create: if isVerifiedUser()
+          && isValidSlug(storeId)
+          && isValidId(orderId)
+          && isValidOrder(incoming(), storeId)
+          && incoming().customerUid == request.auth.uid
+          && incoming().status == 'pending'
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && storeExists(storeId)
+          && getStore(storeId).data.published == true
+          && getStore(storeId).data.ownerId == incoming().storeOwnerId;
+
+        allow update: if isVerifiedUser()
+          && isValidSlug(storeId)
+          && isValidId(orderId)
+          && isValidOrder(incoming(), storeId)
+          && !(existing().status in ['delivered', 'cancelled'])
+          && incoming().storeId == existing().storeId
+          && incoming().storeOwnerId == existing().storeOwnerId
+          && incoming().customerUid == existing().customerUid
+          && incoming().customerName == existing().customerName
+          && incoming().customerEmail == existing().customerEmail
+          && incoming().shippingAddress == existing().shippingAddress
+          && incoming().items == existing().items
+          && incoming().totalAmount == existing().totalAmount
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
+          && (
+            (
+              existing().storeOwnerId == request.auth.uid
+              && isStoreOwner(storeId)
+              && (
+                (existing().status == 'pending' && incoming().status in ['confirmed', 'cancelled'])
+                || (existing().status == 'confirmed' && incoming().status in ['shipped', 'cancelled'])
+                || (existing().status == 'shipped' && incoming().status == 'delivered')
+              )
+            )
+            || (
+              existing().customerUid == request.auth.uid
+              && existing().status == 'pending'
+              && incoming().status == 'cancelled'
+            )
+          );
+
+        allow delete: if false;
+      }
+    }
+  }
+}

@@ -1,0 +1,389 @@
+{
+  "entities": {
+    "StoreTheme": {
+      "title": "StoreTheme",
+      "description": "Visual theme configuration for a tenant storefront.",
+      "type": "object",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["light", "dark"],
+          "description": "Default light or dark theme posture."
+        },
+        "accentColor": {
+          "type": "string",
+          "minLength": 7,
+          "maxLength": 7,
+          "pattern": "^#[0-9a-fA-F]{6}$",
+          "description": "Hex primary accent color for buttons and active controls."
+        },
+        "surfacePreset": {
+          "type": "string",
+          "enum": ["mineral", "paper", "chalk", "obsidian"],
+          "description": "Curated neutral canvas palette."
+        },
+        "fontPairing": {
+          "type": "string",
+          "enum": ["modern", "editorial", "technical"],
+          "description": "Display and body typography pairing."
+        }
+      },
+      "required": ["mode", "accentColor", "surfacePreset", "fontPairing"]
+    },
+    "StoreHero": {
+      "title": "StoreHero",
+      "description": "Hero banner copy and imagery for a tenant storefront.",
+      "type": "object",
+      "properties": {
+        "headline": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "description": "Primary display headline."
+        },
+        "subheadline": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 320,
+          "description": "Supporting campaign copy."
+        },
+        "ctaLabel": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40,
+          "description": "Primary hero call-to-action label."
+        },
+        "imageUrl": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 500,
+          "description": "Hero visual asset path or HTTPS image URL."
+        }
+      },
+      "required": ["headline", "subheadline", "ctaLabel", "imageUrl"]
+    },
+    "StoreStory": {
+      "title": "StoreStory",
+      "description": "Craftsmanship narrative and two headline metrics.",
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 120,
+          "description": "Story section title."
+        },
+        "body": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 500,
+          "description": "Story paragraph copy."
+        },
+        "metricOneValue": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 24,
+          "description": "First quantitative highlight value."
+        },
+        "metricOneLabel": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 40,
+          "description": "First quantitative highlight label."
+        },
+        "metricTwoValue": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 24,
+          "description": "Second quantitative highlight value."
+        },
+        "metricTwoLabel": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 40,
+          "description": "Second quantitative highlight label."
+        }
+      },
+      "required": [
+        "title",
+        "body",
+        "metricOneValue",
+        "metricOneLabel",
+        "metricTwoValue",
+        "metricTwoLabel"
+      ]
+    },
+    "Store": {
+      "title": "Store",
+      "description": "Multi-tenant storefront configuration keyed by URL slug.",
+      "type": "object",
+      "properties": {
+        "slug": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 48,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "description": "Unique lowercase hyphenated tenant slug."
+        },
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Firebase Auth UID of the merchant owner."
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "description": "Public brand or store name."
+        },
+        "tagline": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 140,
+          "description": "Short brand descriptor."
+        },
+        "templateId": {
+          "type": "string",
+          "enum": ["flagship", "editorial", "minimal"],
+          "description": "Active storefront template engine."
+        },
+        "published": {
+          "type": "boolean",
+          "description": "Whether the storefront is publicly accessible."
+        },
+        "theme": {
+          "type": "object",
+          "$ref": "#/entities/StoreTheme",
+          "description": "Store visual theme settings."
+        },
+        "hero": {
+          "type": "object",
+          "$ref": "#/entities/StoreHero",
+          "description": "Store hero banner settings."
+        },
+        "story": {
+          "type": "object",
+          "$ref": "#/entities/StoreStory",
+          "description": "Store craftsmanship story and metrics."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server last-updated timestamp."
+        }
+      },
+      "required": [
+        "slug",
+        "ownerId",
+        "name",
+        "tagline",
+        "templateId",
+        "published",
+        "theme",
+        "hero",
+        "story",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Product belonging to a tenant store catalog.",
+      "type": "object",
+      "properties": {
+        "storeId": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 48,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "description": "Parent store slug."
+        },
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Parent store owner UID."
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "description": "Product title."
+        },
+        "category": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 48,
+          "description": "Catalog category label."
+        },
+        "description": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 600,
+          "description": "Product details and material description."
+        },
+        "price": {
+          "type": "number",
+          "description": "Unit price in USD."
+        },
+        "imageUrl": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 500,
+          "description": "Product photo asset path or HTTPS URL."
+        },
+        "variants": {
+          "type": "array",
+          "description": "Bounded list of selectable sizes or editions (1 to 8 items)."
+        },
+        "finishes": {
+          "type": "array",
+          "description": "Bounded list of color/material finishes (0 to 6 items)."
+        },
+        "inStock": {
+          "type": "boolean",
+          "description": "Inventory availability flag."
+        },
+        "featured": {
+          "type": "boolean",
+          "description": "Whether highlighted as a flagship or featured item."
+        },
+        "storePublished": {
+          "type": "boolean",
+          "description": "Mirrors parent store publication state for secure list queries."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server last-updated timestamp."
+        }
+      },
+      "required": [
+        "storeId",
+        "ownerId",
+        "name",
+        "category",
+        "description",
+        "price",
+        "imageUrl",
+        "variants",
+        "finishes",
+        "inStock",
+        "featured",
+        "storePublished",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Verified customer order placed on a tenant storefront (PII isolated).",
+      "type": "object",
+      "properties": {
+        "storeId": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 48,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "description": "Parent store slug."
+        },
+        "storeOwnerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Merchant owner UID for PII isolation."
+        },
+        "customerUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Authenticated customer UID."
+        },
+        "customerName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "description": "Customer full name."
+        },
+        "customerEmail": {
+          "type": "string",
+          "format": "email",
+          "minLength": 3,
+          "maxLength": 160,
+          "description": "Customer email address."
+        },
+        "shippingAddress": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 300,
+          "description": "Customer delivery address."
+        },
+        "items": {
+          "type": "array",
+          "description": "Bounded list of ordered line items (1 to 20 items)."
+        },
+        "totalAmount": {
+          "type": "number",
+          "description": "Computed order total in USD."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "confirmed", "shipped", "delivered", "cancelled"],
+          "description": "Order fulfillment status."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server last-updated timestamp."
+        }
+      },
+      "required": [
+        "storeId",
+        "storeOwnerId",
+        "customerUid",
+        "customerName",
+        "customerEmail",
+        "shippingAddress",
+        "items",
+        "totalAmount",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/stores/{storeId}": {
+      "schema": { "$ref": "#/entities/Store" },
+      "description": "Top-level multi-tenant stores keyed by unique URL slug."
+    },
+    "/stores/{storeId}/products/{productId}": {
+      "schema": { "$ref": "#/entities/Product" },
+      "description": "Tenant-scoped product catalog subcollection."
+    },
+    "/stores/{storeId}/orders/{orderId}": {
+      "schema": { "$ref": "#/entities/Order" },
+      "description": "Tenant-scoped verified customer orders with strict owner/customer PII isolation."
+    }
+  }
+}
